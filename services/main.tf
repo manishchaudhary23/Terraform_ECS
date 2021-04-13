@@ -10,8 +10,8 @@ terraform {
 
 provider "aws" {
   region = "ap-south-1"
-  access_key = "AKIAQIOE2V2KIJDD6UUZ"
-  secret_key = "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"
+  access_key = "${var.access_key}"
+  secret_key = "${var.secret_key}"
 }
 
 resource "aws_iam_role" "svc" {
