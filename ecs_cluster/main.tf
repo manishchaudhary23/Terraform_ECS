@@ -10,8 +10,8 @@ terraform {
 
 provider "aws" {
   region = "ap-south-1"
-  access_key = "AKIAQIOE2V2KIJDD6UUZ"
-  secret_key = "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"
+  access_key = "${var.access_key}"
+  secret_key = "${var.secret_key}"
 }
 resource "aws_ecs_cluster" "ecs" {
   name = "${var.name}"
@@ -95,7 +95,7 @@ resource "aws_iam_instance_profile" "instance" {
 resource "aws_security_group" "instance" {
   name        = "${var.name}-container-instance"
   description = "Security Group managed by Terraform"
-  vpc_id      = "${var.vpc_id}"
+  vpc_id      = aws_default_vpc.ECS_VPC.id
   tags        = "${merge(var.tags, map("Name", format("%s-container-instance", var.name)))}"
 }
 
@@ -140,6 +140,15 @@ resource "aws_key_pair" "user" {
   public_key = "${file("~/.ssh/id_rsa.pub")}"
 }
 
+resource "aws_instance" "ecsInstance" {
+  ami           = data.aws_ami.ecs.id
+  instance_type = "${var.instance_type}"
+  subnet_id     = "${aws_default_subnet.ecs_Subnet.id}"
+  tags = {
+    Name = "ecs_instance"
+  }
+}
+
 resource "aws_launch_configuration" "instance" {
   name_prefix          = "${var.name}-lc"
   image_id             = "${var.image_id != "" ? var.image_id : data.aws_ami.ecs.id}"
@@ -159,13 +168,33 @@ resource "aws_launch_configuration" "instance" {
   }
 }
 
+resource "aws_default_vpc" "ECS_VPC" {
+#  cidr_block       = "192.0.0.0/16"
+#  instance_tenancy = "default"
+
+  tags = {
+    Name = "ECSVPC"
+  }
+}
+resource "aws_default_subnet" "ecs_Subnet" {
+ # vpc_id     = "${aws_default_vpc.ECS_VPC.id}"
+  #cidr_block = "192.0.1.0/24"
+  availability_zone = "ap-south-1a"
+}
+
+resource "aws_default_subnet" "ecs_Subnet1" {
+ # vpc_id     = "${aws_vpc.ECS_VPC.id}"
+ # cidr_block = "192.0.2.0/24"
+  availability_zone = "ap-south-1b"
+}
+
 resource "aws_lb" "ECSLB" {
   name               = "ecslb"
   internal           = false
   load_balancer_type = "application"
   security_groups    = ["${aws_security_group.instance.id}"]
-  subnets            = ["subnet-0f961315483778441","subnet-0b5d070afb05c5174"]
-  enable_deletion_protection = true
+  subnets            = [aws_default_subnet.ecs_Subnet.id,aws_default_subnet.ecs_Subnet1.id]
+  enable_deletion_protection = false
 #access_logs {
 #bucket  = aws_s3_bucket.lb_logs.bucket
  #   prefix  = "test-lb"
@@ -194,20 +223,19 @@ resource "aws_lb_target_group" "targetGroup" {
   name     = "ecsTargetGroup"
   port     = 80
   protocol = "HTTP" 
-  vpc_id   = "${var.vpc_id}"
+  vpc_id   = "${aws_default_vpc.ECS_VPC.id}"
 }
 
 resource "aws_lb_target_group_attachment" "targetGroupAttachment" {
   target_group_arn = aws_lb_target_group.targetGroup.arn
-  target_id        = "i-052b134327abe8fdb"
+  target_id        = aws_instance.ecsInstance.id
   port             = 80
 }
 
 resource "aws_autoscaling_group" "asg" {
   name = "${var.name}-asg"
-
   launch_configuration = "${aws_launch_configuration.instance.name}"
-  vpc_zone_identifier  = ["${var.vpc_subnets}"]
+  vpc_zone_identifier  = ["${aws_default_subnet.ecs_Subnet.id}"]
   max_size             = "${var.asg_max_size}"
   min_size             = "${var.asg_min_size}"
   desired_capacity     = "${var.asg_desired_size}"
