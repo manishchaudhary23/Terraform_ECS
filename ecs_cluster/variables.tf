@@ -1,6 +1,11 @@
-variable "additional_user_data_script" {
-  description = "Additional user data script (default=\"\")"
-  default     = ""
+variable "access_key" {
+  description = "Access key"
+  default     = "AKIAQIOE2V2KIJDD6UUZ"
+}
+
+variable "secret_key" {
+  description = "Secret key"
+  default     = "gYYk/fhU5IudLTzIE9kHkunbFf+5MyJecveYdPHO"
 }
 
 variable "asg_max_size" {
@@ -54,14 +59,15 @@ variable "tags" {
 
 variable "vpc_id" {
   description = "VPC ID to create cluster in"
-  default     = "vpc-0434229e764d3f80a"
+  default     = ""
 }
 
 variable "vpc_subnets" {
   description = "List of VPC subnets to put instances in"
-  default     = "subnet-0f961315483778441"
+  default     = ""
 }
-variable "vpc_subnets_elb" {
-  description = "List of VPC subnets to put instances in"
-  default     = ["subnet-0f961315483778441","subnet-0b5d070afb05c5174"]
+
+variable "cidr_block" {
+  description = "cidr block"
+  default     = "10.0.0.0/20"
 }
